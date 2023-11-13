@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String
@@ -29,8 +31,12 @@ class Task(Base):
 
 # Créez une classe modèle Pydantic pour les tâches
 class TaskCreate(BaseModel):
+    id: int
     title: str
     description: str
+    status: str
+    dateDeb: date
+    dateFin: date
 
 
 # Créez la table et toutes les autres tables
