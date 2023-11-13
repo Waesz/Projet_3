@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from typing import List
+from sqlalchemy.dialects.mysql import mysqlconnector
 
-DATABASE_URL = "postgresql://root:test@90.63.38.240/prj3"
+DATABASE_URL = "mysql+mysqlconnector://root:test@localhost/prj3"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -20,14 +21,20 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String)
+    title = Column(
+        String(255), index=True
+    )  # Spécifiez une longueur maximale de 255 caractères
+    description = Column(String(255))
 
 
 # Créez une classe modèle Pydantic pour les tâches
 class TaskCreate(BaseModel):
     title: str
     description: str
+
+
+# Créez la table et toutes les autres tables
+Base.metadata.create_all(bind=engine)
 
 
 # ROUTES INSCRIPTION ET CONNEXION
