@@ -1,5 +1,4 @@
 from datetime import date
-
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String
@@ -29,6 +28,20 @@ class Task(Base):
     description = Column(String(255))
 
 
+# Créez une classe modèle SQLAlchemy pour les utilisateurs
+class User(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True)
+    email = Column(String(255), unique=True)
+    password = Column(String(255))
+
+# Creéz une classe modèle Pydantic pour les tâches
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+
 # Créez une classe modèle Pydantic pour les tâches
 class TaskCreate(BaseModel):
     id: int
@@ -37,11 +50,10 @@ class TaskCreate(BaseModel):
     status: str
     dateDeb: date
     dateFin: date
-
+    userId:int
 
 # Créez la table et toutes les autres tables
 Base.metadata.create_all(bind=engine)
-
 
 # ROUTES INSCRIPTION ET CONNEXION
 @app.get("/register")
