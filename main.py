@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from typing import List
 from sqlalchemy.dialects.mysql import mysqlconnector
 
-DATABASE_URL = "mysql+mysqlconnector://root:test@localhost/prj3"
+DATABASE_URL = "postgresql://postgres:test@90.63.38.240/prj3"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
