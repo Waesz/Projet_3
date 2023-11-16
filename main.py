@@ -1,21 +1,20 @@
 import jwt
 from datetime import date, datetime, timedelta
 from typing import List
-
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from passlib.context import CryptContext
-from sqlalchemy import create_engine, Column, Integer, String, Date
+from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Session, relationship
+
 
 SECRET_KEY = "votre_clé_secrète"  # Remplacez par une clé secrète réelle
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Durée de validité du jeton en minutes
-DATABASE_URL = "postgresql://postgres:test@90.63.38.240/prj3v2"
+DATABASE_URL = "mysql+mysqlconnector://root:@127.0.0.1/prj3v3"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -37,16 +36,21 @@ class Task(Base):
         String(255), index=True
     )  # Spécifiez une longueur maximale de 255 caractères
     description = Column(String(255))
+    status = Column(String(255))
+    dateDeb = Column(Date)
+    dateFin = Column(Date)
+    user_id = Column(Integer, ForeignKey("users.ID"))
+    user = relationship("User", back_populates="Tasks")
 
 
 # Créez une classe modèle Pydantic pour les tâches
 class TaskCreate(BaseModel):
-    id: int
     title: str
     description: str
     status: str
     dateDeb: date
     dateFin: date
+    user_id: int
 
 
 # Modèle Pydantic pour la création d'un nouvel utilisateur
@@ -81,12 +85,13 @@ class User(Base):
     __tablename__ = "users"
 
     ID = Column(Integer, primary_key=True, index=True)
-    login = Column(String, unique=True, index=True)
-    Email = Column(String, unique=True, index=True)
-    Password = Column(String)
-    Firstname = Column(String)
-    Lastname = Column(String)
+    login = Column(String(255), unique=True, index=True)
+    Email = Column(String(255), unique=True, index=True)
+    Password = Column(String(255))
+    Firstname = Column(String(255))
+    Lastname = Column(String(255))
     CreationDate = Column(Date)
+    Tasks = relationship("Task", back_populates="user")
 
 
 # Créez la table et toutes les autres tables
@@ -132,18 +137,17 @@ def hash_password(password: str):
 
 
 @app.post("/login", response_model=Token)
-async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(User.login == form_data.username).first()
-    if user is None or not verify_password(form_data.password, user.Password):
-        raise HTTPException(
-            status_code=401, detail="Nom d'utilisateur ou mot de passe incorrect"
-        )
+async def login(login: str, password: str, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.login == login).first()
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Login incorrect")
+    if not verify_password(password, db_user.Password):
+        raise HTTPException(status_code=400, detail="Mot de passe incorrect")
 
+    # Générer un token JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.login}, expires_delta=access_token_expires
+        data={"sub": db_user.login}, expires_delta=access_token_expires
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
@@ -172,9 +176,12 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
     return user_response
 
 
-def create_access_token(data: dict, expires_delta: timedelta):
+def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -197,6 +204,7 @@ async def get_tasks():
 async def post_tasks(task: TaskCreate):
     db = SessionLocal()
     db_task = Task(**task.dict())
+    # db_task.user_id = db.get(User, 1).ID
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
